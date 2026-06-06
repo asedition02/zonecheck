@@ -20,32 +20,34 @@ export default function NewsCard({ item }: Props) {
   })();
 
   return (
-    <article className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col border border-gray-100">
+    <article className="group bg-white rounded-2xl border border-zinc-100 hover:border-zinc-200 hover:shadow-[0_8px_30px_rgba(0,0,0,0.06)] transition-all duration-300 overflow-hidden flex flex-col h-full">
       {item.image && (
-        <div className="relative h-44 overflow-hidden bg-gray-100">
+        <div className="relative aspect-[16/10] overflow-hidden bg-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={item.image}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = "none";
             }}
           />
         </div>
       )}
-      <div className="p-4 flex flex-col flex-1 gap-2">
+      <div className="p-5 flex flex-col flex-1 gap-3">
         {/* Category badges */}
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap items-center gap-1.5">
           {item.categories.map((cat) => (
             <span
               key={cat}
-              className={`text-xs font-medium px-2 py-0.5 rounded-full ${categoryColors[cat]}`}
+              className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${categoryColors[cat]}`}
             >
               {categoryLabels[cat]}
             </span>
           ))}
-          <span className="text-xs text-gray-400 ml-auto">{regionLabels[item.region]}</span>
+          <span className="text-[11px] text-zinc-400 ml-auto">
+            {regionLabels[item.region]}
+          </span>
         </div>
 
         {/* Title */}
@@ -53,27 +55,31 @@ export default function NewsCard({ item }: Props) {
           href={item.link}
           target="_blank"
           rel="noopener noreferrer"
-          className="font-semibold text-gray-900 hover:text-blue-600 transition-colors line-clamp-3 leading-snug"
+          className="font-semibold text-zinc-900 group-hover:text-accent transition-colors line-clamp-3 leading-snug text-[15px]"
         >
           {item.title}
         </a>
 
         {/* Description */}
         {item.description && (
-          <p className="text-sm text-gray-500 line-clamp-3 flex-1">{item.description}</p>
+          <p className="text-sm text-zinc-500 line-clamp-2 flex-1 leading-relaxed">
+            {item.description}
+          </p>
         )}
 
         {/* Footer: source + time */}
-        <div className="flex items-center justify-between pt-2 border-t border-gray-50 mt-auto">
+        <div className="flex items-center justify-between pt-3 border-t border-zinc-100 mt-auto">
           <a
             href={item.sourceUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-blue-500 hover:underline font-medium truncate max-w-[60%]"
+            className="text-xs text-zinc-500 hover:text-zinc-900 font-medium truncate max-w-[60%] transition-colors"
           >
-            📰 {item.sourceName}
+            {item.sourceName}
           </a>
-          {timeAgo && <span className="text-xs text-gray-400">{timeAgo}</span>}
+          {timeAgo && (
+            <span className="text-xs text-zinc-400">{timeAgo}</span>
+          )}
         </div>
       </div>
     </article>

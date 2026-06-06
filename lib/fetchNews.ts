@@ -50,6 +50,98 @@ function extractImage(item: Parser.Item & Record<string, unknown>): string | und
   return undefined;
 }
 
+// İçeriğe göre kategori belirlemek için anahtar kelimeler.
+const CATEGORY_KEYWORDS: Record<Category, string[]> = {
+  drone: [
+    "drone",
+    "drones",
+    "uav",
+    "uas",
+    "quadcopter",
+    "multirotor",
+    "fpv",
+    "dji",
+    "skydio",
+    "autel",
+    "unmanned",
+    "aerial vehicle",
+    "İHA",
+    "iha",
+  ],
+  startup: [
+    "startup",
+    "start-up",
+    "funding",
+    "fundraise",
+    "raises",
+    "raised",
+    "seed round",
+    "series a",
+    "series b",
+    "series c",
+    "venture",
+    " vc ",
+    "valuation",
+    "founder",
+    "acqui",
+    "ipo",
+    "investment",
+    "investor",
+    "round",
+    "girişim",
+    "yatırım",
+  ],
+  technology: [
+    "ai",
+    "artificial intelligence",
+    "machine learning",
+    "software",
+    "hardware",
+    "chip",
+    "semiconductor",
+    "app",
+    "gadget",
+    "smartphone",
+    "robot",
+    "cloud",
+    "cyber",
+    "tech",
+    "computing",
+    "quantum",
+    "processor",
+    "device",
+    "internet",
+    "data",
+    "platform",
+  ],
+};
+
+/**
+ * Bir haberin GERÇEK kategorilerini içeriğine bakarak belirler.
+ * - Kaynak tek bir kategoriye adanmışsa (ör. DroneDJ) o kategori her zaman geçerlidir.
+ * - Çok kategorili kaynaklarda yalnızca içerikte eşleşen kelime varsa kategori eklenir.
+ * - Hiç eşleşme yoksa kaynağın birincil (ilk) kategorisine düşülür.
+ */
+function classifyCategories(
+  title: string,
+  description: string,
+  source: (typeof sources)[0]
+): Category[] {
+  const text = `${title} ${description}`.toLowerCase();
+  const dedicated = source.categories.length === 1;
+  const result: Category[] = [];
+
+  for (const cat of source.categories) {
+    const matches = CATEGORY_KEYWORDS[cat].some((kw) =>
+      text.includes(kw.toLowerCase())
+    );
+    if (dedicated || matches) result.push(cat);
+  }
+
+  if (result.length === 0) result.push(source.categories[0]);
+  return result;
+}
+
 function stripHtml(html: string): string {
   return html
     .replace(/<[^>]*>/g, " ")
@@ -66,21 +158,27 @@ function stripHtml(html: string): string {
 async function fetchSource(source: (typeof sources)[0]): Promise<NewsItem[]> {
   try {
     const feed = await parser.parseURL(source.rss);
-    return (feed.items || []).slice(0, 15).map((item, idx) => ({
-      id: `${source.id}-${idx}-${Date.now()}`,
-      title: stripHtml(item.title || "Başlık yok"),
-      description: stripHtml(
+    return (feed.items || []).slice(0, 15).map((item, idx) => {
+      const title = stripHtml(item.title || "Başlık yok");
+      const description = stripHtml(
         item.contentSnippet || item.summary || item.content || ""
-      ).slice(0, 280),
-      link: item.link || source.url,
-      pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
-      sourceId: source.id,
-      sourceName: source.name,
-      sourceUrl: source.url,
-      region: source.region,
-      categories: source.categories,
-      image: extractImage(item as unknown as Parser.Item & Record<string, unknown>),
-    }));
+      ).slice(0, 280);
+      return {
+        id: `${source.id}-${idx}-${Date.now()}`,
+        title,
+        description,
+        link: item.link || source.url,
+        pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
+        sourceId: source.id,
+        sourceName: source.name,
+        sourceUrl: source.url,
+        region: source.region,
+        categories: classifyCategories(title, description, source),
+        image: extractImage(
+          item as unknown as Parser.Item & Record<string, unknown>
+        ),
+      };
+    });
   } catch {
     return [];
   }
@@ -98,11 +196,19 @@ export async function fetchAllNews(options?: {
 
   const results = await Promise.allSettled(filtered.map(fetchSource));
 
-  const allItems: NewsItem[] = [];
+  let allItems: NewsItem[] = [];
   for (const result of results) {
     if (result.status === "fulfilled") {
       allItems.push(...result.value);
     }
+  }
+
+  // İçeriğe göre belirlenen gerçek kategoriye göre öğe düzeyinde filtrele:
+  // "drone" seçilince yalnızca gerçekten drone ile ilgili haberler kalır.
+  if (options?.category) {
+    allItems = allItems.filter((item) =>
+      item.categories.includes(options.category!)
+    );
   }
 
   // Sort by date descending
